@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Informes IGLECO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+    <div class="max-w-6xl mx-auto py-8 px-4">
+        <header class="bg-indigo-900 text-white p-6 rounded-lg shadow-md mb-6">
+            <h1 class="text-2xl font-bold">📊 Generador de Informes IGLECO</h1>
+            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel.</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow-md space-y-6">
+                <h2 class="text-lg font-semibold text-slate-700 border-b pb-2">1. Cargar Archivos</h2>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Archivo de Grupos (con Sede)</label>
+                    <input type="file" id="fileGroups" accept=".xlsx, .xls" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
+                    <span id="statusGroups" class="text-xs text-emerald-600 hidden font-medium">✓ Cargado</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Archivo de Reportes Semanales</label>
+                    <input type="file" id="fileReports" accept=".xlsx, .xls" class="block w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
+                    <span id="statusReports" class="text-xs text-emerald-600 hidden font-medium">✓ Cargado</span>
+                </div>
+
+                <h2 class="text-lg font-semibold text-slate-700 border-b pb-2 pt-2">2. Delimitar Reporte</h2>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Sede IGLECO</label>
+                    <select id="selectSede" disabled class="w-full bg-slate-50 border border-slate-300 text-slate-700 py-2 px-3 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Todas">-- Todas las Sedes --</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Tipo de Grupo</label>
+                    <select id="selectTipo" disabled class="w-full bg-slate-50 border border-slate-300 text-slate-700 py-2 px-3 rounded text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Todos">-- Todos los Tipos --</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Inicio</label>
+                        <input type="date" id="dateStart" disabled class="w-full bg-slate-50 border border-slate-300 text-slate-700 py-1.5 px-2 rounded text-xs">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">Fecha Fin</label>
+                        <input type="date" id="dateEnd" disabled class="w-full bg-slate-50 border border-slate-300 text-slate-700 py-1.5 px-2 rounded text-xs">
+                    </div>
+                </div>
+                <button id="btnExport" disabled class="w-full bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-2.5 px-4 rounded text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed transition">
+                    📥 Descargar Excel Filtrado
+                </button>
+            </div>
+
+            <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md flex flex-col">
+                <div class="flex justify-between items-center border-b pb-3 mb-4">
+                    <h2 class="text-lg font-semibold text-slate-700">Vista Previa del Informe</h2>
+                    <span id="recordCount" class="text-xs bg-indigo-100 text-indigo-800 font-bold px-2.5 py-1 rounded-full">0 registros</span>
+                </div>
+                <div class="flex-1 overflow-auto border border-slate-200 rounded max-h-[500px]">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-indigo-900 text-white uppercase text-[10px] tracking-wider sticky top-0">
+                            <tr>
+                                <th class="py-2.5 px-3 w-24">Fecha</th>
+                                <th class="py-2.5 px-3 w-48">Grupo</th>
+                                <th class="py-2.5 px-3">Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-200">
+                            <tr>
+                                <td colspan="3" class="text-center py-8 text-slate-400 italic">Cargue ambos archivos para habilitar la vista previa.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let groupsData = [], reportsData = [], filteredResults = [];
+        const fileGroups = document.getElementById('fileGroups'), fileReports = document.getElementById('fileReports');
+        const selectSede = document.getElementById('selectSede'), selectTipo = document.getElementById('selectTipo');
+        const dateStart = document.getElementById('dateStart'), dateEnd = document.getElementById('dateEnd');
+        const tableBody = document.getElementById('tableBody'), recordCount = document.getElementById('recordCount'), btnExport = document.getElementById('btnExport');
+
+        fileGroups.addEventListener('change', (e) => handleFile(e, 'groups'));
+        fileReports.addEventListener('change', (e) => handleFile(e, 'reports'));
+        selectSede.addEventListener('change', applyFilters);
+        selectTipo.addEventListener('change', applyFilters);
+        dateStart.addEventListener('change', applyFilters);
+        dateEnd.addEventListener('change', applyFilters);
+
+        function handleFile(e, type) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, {type: 'array', cellDates: true});
+                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                if (type === 'groups') { groupsData = json; document.getElementById('statusGroups').classList.remove('hidden'); }
+                else { reportsData = json; document.getElementById('statusReports').classList.remove('hidden'); }
+                if (groupsData.length > 0 && reportsData.length > 0) initApp();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function initApp() {
+            const sedes = [...new Set(groupsData.map(i => i['Sede Asignada'] || i['Sede IGLECO'] || i['Sede'] || 'Sin Sede'))].sort();
+            const tipos = [...new Set(groupsData.map(i => i['Tipo Grupo'] || i['Tipo'] || 'General'))].sort();
+            selectSede.innerHTML = '<option value="Todas">-- Todas las Sedes --</option>' + sedes.map(s => `<option value="${s}">${s}</option>`).join('');
+            selectTipo.innerHTML = '<option value="Todos">-- Todos los Tipos --</option>' + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+            selectSede.disabled = selectTipo.disabled = dateStart.disabled = dateEnd.disabled = btnExport.disabled = false;
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const sSede = selectSede.value, sTipo = selectTipo.value;
+            const startVal = dateStart.value ? new Date(dateStart.value) : null, endVal = dateEnd.value ? new Date(dateEnd.value) : null;
+            const groupMap = {};
+            groupsData.forEach(g => {
+                const name = (g['Nombre'] || g['Grupo'] || '').trim().toLowerCase();
+                if (name) groupMap[name] = { sede: g['Sede Asignada'] || g['Sede IGLECO'] || g['Sede'] || 'Sin Sede', tipo: g['Tipo Grupo'] || g['Tipo'] || 'General' };
+            });
+
+            filteredResults = [];
+            reportsData.forEach(r => {
+                const rawName = (r['Grupo'] || r['Nombre'] || '').trim(), groupInfo = groupMap[rawName.toLowerCase()] || { sede: 'Sin Sede', tipo: 'General' };
+                let rDate = r['Fecha'] || r['FECHA'];
+                if (rDate && !(rDate instanceof Date)) rDate = new Date(rDate);
+                if (sSede !== 'Todas' && groupInfo.sede !== sSede) return;
+                if (sTipo !== 'Todos' && groupInfo.tipo !== sTipo) return;
+                if (startVal && rDate < startVal) return;
+                if (endVal && rDate > endVal) return;
+                filteredResults.push({ fecha: rDate ? rDate.toISOString().split('T')[0] : '', grupo: rawName, observaciones: r['Observaciones'] || r['Observacion'] || r['Reporte'] || '' });
+            });
+            renderTable();
+        }
+
+        function renderTable() {
+            recordCount.textContent = `${filteredResults.length} registros`;
+            if (filteredResults.length === 0) { tableBody.innerHTML = '<tr><td colspan="3" class="text-center py-8 text-slate-400">No se encontraron registros.</td></tr>'; return; }
+            tableBody.innerHTML = filteredResults.map((row, idx) => `
+                <tr class="${idx % 2 === 1 ? 'bg-slate-50' : 'bg-white'} hover:bg-indigo-50">
+                    <td class="py-2 px-3 font-medium text-slate-700 whitespace-nowrap">${row.fecha}</td>
+                    <td class="py-2 px-3 font-medium text-indigo-900">${row.grupo}</td>
+                    <td class="py-2 px-3 text-slate-600">${row.observaciones}</td>
+                </tr>
+            `).join('');
+        }
+
+        btnExport.addEventListener('click', () => {
+            if (filteredResults.length === 0) return;
+            const wsData = [
+                ["INFORME DE OBSERVACIONES Y REPORTES DE GRUPOS"],
+                [`Sede: ${selectSede.value} | Tipo de Grupo: ${selectTipo.value} | Registros: ${filteredResults.length}`],
+                [], ["Fecha", "Grupo", "Observaciones"]
+            ];
+            filteredResults.forEach(r => wsData.push([r.fecha, r.grupo, r.observaciones]));
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = [{wch: 15}, {wch: 35}, {wch: 85}];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Reporte Filtrado");
+            XLSX.writeFile(wb, `Reporte_IGLECO_${selectSede.value}_${selectTipo.value}.xlsx`);
+        });
+    </script>
+</body>
+</html>
