@@ -95,6 +95,13 @@
         dateStart.addEventListener('change', applyFilters);
         dateEnd.addEventListener('change', applyFilters);
 
+        // Búsqueda flexible de campos ignorando mayúsculas y caracteres especiales
+        function getValueByCaseInsensitiveKey(obj, targetKeyPart) {
+            if (!obj) return '';
+            const key = Object.keys(obj).find(k => k.toLowerCase().replace(/\s+/g, '').includes(targetKeyPart.toLowerCase().replace(/\s+/g, '')));
+            return key ? obj[key] : '';
+        }
+
         function handleFile(e, type) {
             const file = e.target.files[0];
             if (!file) return;
@@ -103,18 +110,36 @@
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, {type: 'array', cellDates: true});
                 const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                if (type === 'groups') { groupsData = json; document.getElementById('statusGroups').classList.remove('hidden'); }
-                else { reportsData = json; document.getElementById('statusReports').classList.remove('hidden'); }
+                if (type === 'groups') { 
+                    groupsData = json; 
+                    document.getElementById('statusGroups').classList.remove('hidden'); 
+                } else { 
+                    reportsData = json; 
+                    document.getElementById('statusReports').classList.remove('hidden'); 
+                }
                 if (groupsData.length > 0 && reportsData.length > 0) initApp();
             };
             reader.readAsArrayBuffer(file);
         }
 
         function initApp() {
-            const sedes = [...new Set(groupsData.map(i => i['Sede Asignada'] || i['Sede IGLECO'] || i['Sede'] || 'Sin Sede'))].sort();
-            const tipos = [...new Set(groupsData.map(i => i['Tipo Grupo'] || i['Tipo'] || 'General'))].sort();
+            const sedesSet = new Set();
+            const tiposSet = new Set();
+
+            groupsData.forEach(g => {
+                const sedeVal = getValueByCaseInsensitiveKey(g, 'sede');
+                const tipoVal = getValueByCaseInsensitiveKey(g, 'tipo');
+
+                if (sedeVal) sedesSet.add(String(sedeVal).trim());
+                if (tipoVal) tiposSet.add(String(tipoVal).trim());
+            });
+
+            const sedes = [...sedesSet].sort();
+            const tipos = [...tiposSet].sort();
+
             selectSede.innerHTML = '<option value="Todas">-- Todas las Sedes --</option>' + sedes.map(s => `<option value="${s}">${s}</option>`).join('');
             selectTipo.innerHTML = '<option value="Todos">-- Todos los Tipos --</option>' + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+            
             selectSede.disabled = selectTipo.disabled = dateStart.disabled = dateEnd.disabled = btnExport.disabled = false;
             applyFilters();
         }
@@ -122,22 +147,41 @@
         function applyFilters() {
             const sSede = selectSede.value, sTipo = selectTipo.value;
             const startVal = dateStart.value ? new Date(dateStart.value) : null, endVal = dateEnd.value ? new Date(dateEnd.value) : null;
+            
             const groupMap = {};
             groupsData.forEach(g => {
-                const name = (g['Nombre'] || g['Grupo'] || '').trim().toLowerCase();
-                if (name) groupMap[name] = { sede: g['Sede Asignada'] || g['Sede IGLECO'] || g['Sede'] || 'Sin Sede', tipo: g['Tipo Grupo'] || g['Tipo'] || 'General' };
+                const name = String(getValueByCaseInsensitiveKey(g, 'nombre') || getValueByCaseInsensitiveKey(g, 'grupo')).trim().toLowerCase();
+                const sede = getValueByCaseInsensitiveKey(g, 'sede');
+                const tipo = getValueByCaseInsensitiveKey(g, 'tipo');
+
+                if (name) {
+                    groupMap[name] = { 
+                        sede: sede ? String(sede).trim() : 'Sin Sede', 
+                        tipo: tipo ? String(tipo).trim() : 'Sin Tipo' 
+                    };
+                }
             });
 
             filteredResults = [];
             reportsData.forEach(r => {
-                const rawName = (r['Grupo'] || r['Nombre'] || '').trim(), groupInfo = groupMap[rawName.toLowerCase()] || { sede: 'Sin Sede', tipo: 'General' };
-                let rDate = r['Fecha'] || r['FECHA'];
+                const rawName = String(getValueByCaseInsensitiveKey(r, 'grupo') || getValueByCaseInsensitiveKey(r, 'nombre')).trim();
+                const groupInfo = groupMap[rawName.toLowerCase()] || { sede: 'Sin Sede', tipo: 'Sin Tipo' };
+                
+                let rDate = getValueByCaseInsensitiveKey(r, 'fecha');
                 if (rDate && !(rDate instanceof Date)) rDate = new Date(rDate);
+
                 if (sSede !== 'Todas' && groupInfo.sede !== sSede) return;
                 if (sTipo !== 'Todos' && groupInfo.tipo !== sTipo) return;
                 if (startVal && rDate < startVal) return;
                 if (endVal && rDate > endVal) return;
-                filteredResults.push({ fecha: rDate ? rDate.toISOString().split('T')[0] : '', grupo: rawName, observaciones: r['Observaciones'] || r['Observacion'] || r['Reporte'] || '' });
+
+                const obs = getValueByCaseInsensitiveKey(r, 'observ') || getValueByCaseInsensitiveKey(r, 'coment') || getValueByCaseInsensitiveKey(r, 'reporte');
+
+                filteredResults.push({ 
+                    fecha: (rDate && !isNaN(rDate)) ? rDate.toISOString().split('T')[0] : '', 
+                    grupo: rawName, 
+                    observaciones: obs ? String(obs) : '' 
+                });
             });
             renderTable();
         }
