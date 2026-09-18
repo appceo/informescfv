@@ -12,7 +12,7 @@
     <div class="max-w-6xl mx-auto py-8 px-4">
         <header class="bg-indigo-900 text-white p-6 rounded-lg shadow-md mb-6">
             <h1 class="text-2xl font-bold">📊 Generador de Informes IGLECO</h1>
-            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel con diseño profesional.</p>
+            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel con corrección de texto y diseño profesional.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -68,7 +68,7 @@
                             <tr>
                                 <th class="py-2.5 px-3 w-24">Fecha</th>
                                 <th class="py-2.5 px-3 w-48">Grupo</th>
-                                <th class="py-2.5 px-3">Observaciones</th>
+                                <th class="py-2.5 px-3">Observaciones (Corregidas)</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody" class="divide-y divide-slate-200">
@@ -100,6 +100,73 @@
             if (!obj) return '';
             const key = Object.keys(obj).find(k => k.toLowerCase().replace(/\s+/g, '').includes(targetKeyPart.toLowerCase().replace(/\s+/g, '')));
             return key ? obj[key] : '';
+        }
+
+        // MOTOR DE CORRECCIÓN ORTOGRÁFICA, GRAMATICAL Y FORMATO DE TEXTO
+        function cleanAndCorrectText(text) {
+            if (!text || typeof text !== 'string') return '';
+            let str = text.trim();
+            if (str.length === 0) return '';
+
+            // 1. Detección y conversión de Mayúscula Sostenida
+            const uppercaseCount = (str.match(/[A-ZÁÉÍÓÚÑ]/g) || []).length;
+            const letterCount = (str.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g) || []).length;
+            
+            if (letterCount > 0 && (uppercaseCount / letterCount) > 0.7) {
+                str = str.toLowerCase();
+            }
+
+            // 2. Diccionario de tildes y ortografía
+            const dictionaryReplacements = [
+                [/\breunion\b/gi, 'reunión'],
+                [/\breuniones\b/gi, 'reuniones'],
+                [/\bbendicion\b/gi, 'bendición'],
+                [/\bbendiciones\b/gi, 'bendiciones'],
+                [/\boracion\b/gi, 'oración'],
+                [/\basambla\b/gi, 'asamblea'],
+                [/\bmaravilloso\b/gi, 'maravilloso'],
+                [/\brelacion\b/gi, 'relación'],
+                [/\bparticipacion\b/gi, 'participación'],
+                [/\bedificacion\b/gi, 'edificación'],
+                [/\bcomunion\b/gi, 'comunión'],
+                [/\bcancion\b/gi, 'canción'],
+                [/\basistio\b/gi, 'asistió'],
+                [/\basistieron\b/gi, 'asistieron'],
+                [/\brealizo\b/gi, 'realizó'],
+                [/\brealizaron\b/gi, 'realizaron'],
+                [/\btematica\b/gi, 'temática'],
+                [/\bdia\b/gi, 'día'],
+                [/\bdias\b/gi, 'días'],
+                [/\biglesia\b/gi, 'Iglesia'],
+                [/\bigleco\b/gi, 'IGLECO'],
+                [/\bdios\b/gi, 'Dios'],
+                [/\bjesus\b/gi, 'Jesús'],
+                [/\bespiritu santo\b/gi, 'Espíritu Santo'],
+                [/\bsenor\b/gi, 'Señor'],
+                [/\bbiblia\b/gi, 'Biblia'],
+                [/\bcfv\b/gi, 'CFV']
+            ];
+
+            dictionaryReplacements.forEach(([pattern, replacement]) => {
+                str = str.replace(pattern, replacement);
+            });
+
+            // 3. Mayúscula inicial en oraciones
+            str = str.replace(/(^\s*|[.!?]\s+)([a-zñáéíóú])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+
+            // 4. Formato Nombre Propio para nombres conocidos
+            const commonNames = ["Iván", "Aguirre", "Néstor", "Ricardo", "Liliana", "Fajardo", "Helio", "Maria", "Lida", "Hernández", "Ángel", "Lucila", "Díaz", "Esperanza", "Rodríguez", "Elizabeth", "Álvarez", "Adriana", "Yolanda", "Muñoz", "Jaime", "Gloria", "Castelblanco", "Víctor", "Herrera", "Blanca", "Myriam", "Prieto", "Carmen", "López", "Helbert", "Isabel", "Andrés", "Gaitán", "Diego", "Paula", "Moreno", "Bonnie", "Marcela", "Diana", "Rivero", "Carlos", "Jennifer", "Medina", "Marlen", "Erazo", "Sandra", "Varela", "Margarita", "Castillo", "Flor", "Masmela", "Irene", "González", "Gladys", "Suárez", "Alfredo", "Martínez", "Daniel", "Nazhly", "Duarte", "Jesús", "Antonio", "Mora", "Ana", "Valois", "Clemencia", "Magdalena", "Montoya", "Yanira", "Gutiérrez", "Leydy", "Samuel", "Camilo", "Herminda", "William", "Oscar", "Jenny", "Cortés", "Ruth", "Nelly", "Méndez", "Yazmín", "Alirio", "Yaneida", "Guerty", "Milena", "Gallo", "Genny", "Fabio", "Correa", "Luis", "Germán", "Teresa", "Aragón", "Edgar", "Orlando", "Martha", "Lucy", "Castro", "Yadira", "Sonia", "Claudia", "Sofía", "Ramos", "Laura", "Kevin", "Sara", "Sarita", "Abiel", "Juan", "Valentina", "Cathy", "Nicolás", "Daniela", "Ramírez", "Sebastián", "Felipe", "Yuly", "Pineda", "Tatiana", "Arrazola", "Roberto", "Cristina", "Ortiz", "Judith", "Serrano", "Héctor", "Vargas", "Alberto", "Amparo", "Pinzón", "Alfonso", "Vega", "Jared", "Estefanía", "Javier", "Nathalia", "Julio", "Johanna", "Guerra", "Rubén", "Elsa", "Useche", "Charly", "Karen", "Fanny", "Bernd", "Zipaquirá", "Chía", "Cajicá", "Ibagué", "Tocancipá", "Bogotá"];
+
+            commonNames.forEach(name => {
+                const nameRegex = new RegExp(`\\b${name}\\b`, 'gi');
+                str = str.replace(nameRegex, name);
+            });
+
+            // 5. Limpieza de puntuación y espacios
+            str = str.replace(/\s+/g, ' ');
+            str = str.replace(/\s+([.,;:!?])/g, '$1');
+
+            return str;
         }
 
         function handleFile(e, type) {
@@ -175,12 +242,15 @@
                 if (startVal && rDate < startVal) return;
                 if (endVal && rDate > endVal) return;
 
-                const obs = getValueByCaseInsensitiveKey(r, 'observ') || getValueByCaseInsensitiveKey(r, 'coment') || getValueByCaseInsensitiveKey(r, 'reporte');
+                const rawObs = getValueByCaseInsensitiveKey(r, 'observ') || getValueByCaseInsensitiveKey(r, 'coment') || getValueByCaseInsensitiveKey(r, 'reporte');
+                
+                // Procesamiento y corrección de texto
+                const correctedObs = cleanAndCorrectText(String(rawObs || ''));
 
                 filteredResults.push({ 
                     fecha: (rDate && !isNaN(rDate)) ? rDate.toISOString().split('T')[0] : '', 
                     grupo: rawName, 
-                    observaciones: obs ? String(obs) : '' 
+                    observaciones: correctedObs
                 });
             });
             renderTable();
@@ -211,7 +281,6 @@
             const sTipo = selectTipo.value;
             const rangeStr = (dateStart.value || dateEnd.value) ? `${dateStart.value || 'Inicio'} a ${dateEnd.value || 'Fin'}` : 'Todos los registros';
 
-            // 1. TÍTULO Y DELIMITACIÓN
             ws.mergeCells('A1:C1');
             const titleCell = ws.getCell('A1');
             titleCell.value = "INFORME DE OBSERVACIONES Y REPORTES DE GRUPOS";
@@ -228,7 +297,6 @@
 
             ws.getRow(3).height = 10;
 
-            // 2. ENCABEZADOS DE TABLA
             const headers = ["Fecha", "Grupo", "Observaciones"];
             const headerRow = ws.getRow(4);
             headerRow.height = 26;
@@ -245,12 +313,10 @@
                 };
             });
 
-            // 3. ANCHO DE COLUMNAS FIX
             ws.getColumn(1).width = 16;
             ws.getColumn(2).width = 32;
             ws.getColumn(3).width = 85;
 
-            // 4. DATOS Y FORMATO DE PARRAFO/FILA
             const borderStyle = {
                 top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
                 bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
