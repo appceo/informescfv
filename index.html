@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador de Informes IGLECO</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
     <div class="max-w-6xl mx-auto py-8 px-4">
         <header class="bg-indigo-900 text-white p-6 rounded-lg shadow-md mb-6">
             <h1 class="text-2xl font-bold">📊 Generador de Informes IGLECO</h1>
-            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel.</p>
+            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel con diseño profesional.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -52,7 +53,7 @@
                     </div>
                 </div>
                 <button id="btnExport" disabled class="w-full bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-2.5 px-4 rounded text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed transition">
-                    📥 Descargar Excel Filtrado
+                    ✨ Descargar Excel Profesional
                 </button>
             </div>
 
@@ -95,7 +96,6 @@
         dateStart.addEventListener('change', applyFilters);
         dateEnd.addEventListener('change', applyFilters);
 
-        // Búsqueda flexible de campos ignorando mayúsculas y caracteres especiales
         function getValueByCaseInsensitiveKey(obj, targetKeyPart) {
             if (!obj) return '';
             const key = Object.keys(obj).find(k => k.toLowerCase().replace(/\s+/g, '').includes(targetKeyPart.toLowerCase().replace(/\s+/g, '')));
@@ -198,19 +198,106 @@
             `).join('');
         }
 
-        btnExport.addEventListener('click', () => {
+        btnExport.addEventListener('click', async () => {
             if (filteredResults.length === 0) return;
-            const wsData = [
-                ["INFORME DE OBSERVACIONES Y REPORTES DE GRUPOS"],
-                [`Sede: ${selectSede.value} | Tipo de Grupo: ${selectTipo.value} | Registros: ${filteredResults.length}`],
-                [], ["Fecha", "Grupo", "Observaciones"]
-            ];
-            filteredResults.forEach(r => wsData.push([r.fecha, r.grupo, r.observaciones]));
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            ws['!cols'] = [{wch: 15}, {wch: 35}, {wch: 85}];
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Reporte Filtrado");
-            XLSX.writeFile(wb, `Reporte_IGLECO_${selectSede.value}_${selectTipo.value}.xlsx`);
+
+            const workbook = new ExcelJS.Workbook();
+            const ws = workbook.addWorksheet('Informe de Observaciones', {
+                views: [{ showGridLines: true }],
+                pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+            });
+
+            const sSede = selectSede.value;
+            const sTipo = selectTipo.value;
+            const rangeStr = (dateStart.value || dateEnd.value) ? `${dateStart.value || 'Inicio'} a ${dateEnd.value || 'Fin'}` : 'Todos los registros';
+
+            // 1. TÍTULO Y DELIMITACIÓN
+            ws.mergeCells('A1:C1');
+            const titleCell = ws.getCell('A1');
+            titleCell.value = "INFORME DE OBSERVACIONES Y REPORTES DE GRUPOS";
+            titleCell.font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF1B365D' } };
+            titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+            ws.getRow(1).height = 25;
+
+            ws.mergeCells('A2:C2');
+            const subCell = ws.getCell('A2');
+            subCell.value = `SEDE IGLECO: ${sSede}  |  TIPO DE GRUPO: ${sTipo}  |  RANGO DE FECHAS: ${rangeStr}  |  TOTAL REGISTROS: ${filteredResults.length}`;
+            subCell.font = { name: 'Calibri', size: 10, italic: true, bold: true, color: { argb: 'FF555555' } };
+            subCell.alignment = { vertical: 'middle', horizontal: 'left' };
+            ws.getRow(2).height = 20;
+
+            ws.getRow(3).height = 10;
+
+            // 2. ENCABEZADOS DE TABLA
+            const headers = ["Fecha", "Grupo", "Observaciones"];
+            const headerRow = ws.getRow(4);
+            headerRow.height = 26;
+
+            headers.forEach((h, colIdx) => {
+                const cell = headerRow.getCell(colIdx + 1);
+                cell.value = h;
+                cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B365D' } };
+                cell.alignment = { vertical: 'middle', horizontal: colIdx === 0 ? 'center' : 'left' };
+                cell.border = {
+                    top: { style: 'medium', color: { argb: 'FF1B365D' } },
+                    bottom: { style: 'medium', color: { argb: 'FF1B365D' } }
+                };
+            });
+
+            // 3. ANCHO DE COLUMNAS FIX
+            ws.getColumn(1).width = 16;
+            ws.getColumn(2).width = 32;
+            ws.getColumn(3).width = 85;
+
+            // 4. DATOS Y FORMATO DE PARRAFO/FILA
+            const borderStyle = {
+                top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+            };
+
+            filteredResults.forEach((row, rIdx) => {
+                const rowNum = rIdx + 5;
+                const dataRow = ws.getRow(rowNum);
+
+                const c1 = dataRow.getCell(1);
+                c1.value = row.fecha;
+                c1.alignment = { vertical: 'top', horizontal: 'center' };
+
+                const c2 = dataRow.getCell(2);
+                c2.value = row.grupo;
+                c2.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+
+                const c3 = dataRow.getCell(3);
+                c3.value = row.observaciones;
+                c3.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+
+                const isZebra = (rIdx % 2 === 1);
+                const rowFill = isZebra ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F9' } } : null;
+
+                [c1, c2, c3].forEach(c => {
+                    c.font = { name: 'Calibri', size: 10 };
+                    c.border = borderStyle;
+                    if (rowFill) c.fill = rowFill;
+                });
+
+                const textLength = (row.observaciones || '').length;
+                const estimatedLines = Math.max(1, Math.ceil(textLength / 90));
+                dataRow.height = Math.max(22, estimatedLines * 16 + 10);
+            });
+
+            ws.pageSetup.printTitlesRow = '1:4';
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Informe_IGLECO_${sSede}_${sTipo}.xlsx`;
+            a.click();
+            window.URL.revokeObjectURL(url);
         });
     </script>
 </body>
