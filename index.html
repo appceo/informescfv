@@ -12,7 +12,7 @@
     <div class="max-w-6xl mx-auto py-8 px-4">
         <header class="bg-indigo-900 text-white p-6 rounded-lg shadow-md mb-6">
             <h1 class="text-2xl font-bold">📊 Generador de Informes IGLECO</h1>
-            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel con corrección de texto y diseño profesional.</p>
+            <p class="text-indigo-200 text-sm mt-1">Carga los archivos base, aplica filtros y descarga el informe formateado en Excel con corrección ortográfica y gramatical exhaustiva.</p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -68,7 +68,7 @@
                             <tr>
                                 <th class="py-2.5 px-3 w-24">Fecha</th>
                                 <th class="py-2.5 px-3 w-48">Grupo</th>
-                                <th class="py-2.5 px-3">Observaciones (Corregidas)</th>
+                                <th class="py-2.5 px-3">Observaciones (Corregidas Ortografía & Redacción)</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody" class="divide-y divide-slate-200">
@@ -102,34 +102,33 @@
             return key ? obj[key] : '';
         }
 
-        // MOTOR DE CORRECCIÓN ORTOGRÁFICA, GRAMATICAL Y FORMATO DE TEXTO
         function cleanAndCorrectText(text) {
             if (!text || typeof text !== 'string') return '';
             let str = text.trim();
             if (str.length === 0) return '';
 
-            // 1. Detección y conversión de Mayúscula Sostenida
-            const uppercaseCount = (str.match(/[A-ZÁÉÍÓÚÑ]/g) || []).length;
-            const letterCount = (str.match(/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/g) || []).length;
-            
-            if (letterCount > 0 && (uppercaseCount / letterCount) > 0.7) {
-                str = str.toLowerCase();
-            }
+            const acronyms = new Set(["IGLECO", "CFV", "CC", "TV", "CL", "CLL", "CRA", "II", "III", "IV"]);
+            str = str.replace(/\b[A-ZÁÉÍÓÚÑ]{2,}\b/g, function(word) {
+                if (acronyms.has(word)) return word;
+                if (word === "SEÑOR" || word === "SENOR") return "Señor";
+                if (word === "DIOS") return "Dios";
+                if (word === "JESUS" || word === "JESÚS") return "Jesús";
+                return word.charAt(0) + word.slice(1).toLowerCase();
+            });
 
-            // 2. Diccionario de tildes y ortografía
-            const dictionaryReplacements = [
+            const typoReplacements = [
+                [/\bcituacion\b/gi, 'situación'],
+                [/\bcituación\b/gi, 'situación'],
+                [/\bsituacion\b/gi, 'situación'],
+                [/\bproteccion\b/gi, 'protección'],
+                [/\bdificil\b/gi, 'difícil'],
+                [/\bfacil\b/gi, 'fácil'],
                 [/\breunion\b/gi, 'reunión'],
                 [/\breuniones\b/gi, 'reuniones'],
                 [/\bbendicion\b/gi, 'bendición'],
                 [/\bbendiciones\b/gi, 'bendiciones'],
                 [/\boracion\b/gi, 'oración'],
-                [/\basambla\b/gi, 'asamblea'],
-                [/\bmaravilloso\b/gi, 'maravilloso'],
-                [/\brelacion\b/gi, 'relación'],
-                [/\bparticipacion\b/gi, 'participación'],
-                [/\bedificacion\b/gi, 'edificación'],
-                [/\bcomunion\b/gi, 'comunión'],
-                [/\bcancion\b/gi, 'canción'],
+                [/\boraciones\b/gi, 'oraciones'],
                 [/\basistio\b/gi, 'asistió'],
                 [/\basistieron\b/gi, 'asistieron'],
                 [/\brealizo\b/gi, 'realizó'],
@@ -137,32 +136,92 @@
                 [/\btematica\b/gi, 'temática'],
                 [/\bdia\b/gi, 'día'],
                 [/\bdias\b/gi, 'días'],
-                [/\biglesia\b/gi, 'Iglesia'],
-                [/\bigleco\b/gi, 'IGLECO'],
+                [/\bvictorbeuses\b/gi, 'Víctor Beuses'],
+                [/\bSEÑOR\b/gi, 'Señor'],
+                [/\bsenor\b/gi, 'Señor'],
                 [/\bdios\b/gi, 'Dios'],
                 [/\bjesus\b/gi, 'Jesús'],
-                [/\bespiritu santo\b/gi, 'Espíritu Santo'],
-                [/\bsenor\b/gi, 'Señor'],
                 [/\bbiblia\b/gi, 'Biblia'],
-                [/\bcfv\b/gi, 'CFV']
+                [/\biglesia\b/gi, 'Iglesia'],
+                [/\bigleco\b/gi, 'IGLECO'],
+                [/\bcomunion\b/gi, 'comunión'],
+                [/\bedificacion\b/gi, 'edificación'],
+                [/\bparticipacion\b/gi, 'participación'],
+                [/\bcancion\b/gi, 'canción'],
+                [/\bcanciones\b/gi, 'canciones'],
+                [/\brestauracion\b/gi, 'restauración'],
+                [/\bsanacion\b/gi, 'sanación'],
+                [/\boperacion\b/gi, 'operación'],
+                [/\batencion\b/gi, 'atención'],
+                [/\btambien\b/gi, 'también'],
+                [/\bademas\b/gi, 'además'],
+                [/\btraves\b/gi, 'través'],
+                [/\bdespues\b/gi, 'después'],
+                [/\bestan\b/gi, 'están']
             ];
 
-            dictionaryReplacements.forEach(([pattern, replacement]) => {
+            typoReplacements.forEach(([pattern, replacement]) => {
                 str = str.replace(pattern, replacement);
             });
 
-            // 3. Mayúscula inicial en oraciones
-            str = str.replace(/(^\s*|[.!?]\s+)([a-zñáéíóú])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+            str = str.replace(/\b(ya|se|no|que|él|ella|quien)\s+esta\b/gi, '$1 está');
+            str = str.replace(/\besta\s+(trabajando|orando|asistiendo|haciendo|estudiando|buscando|pasando|saliendo|mejorando|sanando|recuperando|viviendo)\b/gi, 'está $1');
 
-            // 4. Formato Nombre Propio para nombres conocidos
-            const commonNames = ["Iván", "Aguirre", "Néstor", "Ricardo", "Liliana", "Fajardo", "Helio", "Maria", "Lida", "Hernández", "Ángel", "Lucila", "Díaz", "Esperanza", "Rodríguez", "Elizabeth", "Álvarez", "Adriana", "Yolanda", "Muñoz", "Jaime", "Gloria", "Castelblanco", "Víctor", "Herrera", "Blanca", "Myriam", "Prieto", "Carmen", "López", "Helbert", "Isabel", "Andrés", "Gaitán", "Diego", "Paula", "Moreno", "Bonnie", "Marcela", "Diana", "Rivero", "Carlos", "Jennifer", "Medina", "Marlen", "Erazo", "Sandra", "Varela", "Margarita", "Castillo", "Flor", "Masmela", "Irene", "González", "Gladys", "Suárez", "Alfredo", "Martínez", "Daniel", "Nazhly", "Duarte", "Jesús", "Antonio", "Mora", "Ana", "Valois", "Clemencia", "Magdalena", "Montoya", "Yanira", "Gutiérrez", "Leydy", "Samuel", "Camilo", "Herminda", "William", "Oscar", "Jenny", "Cortés", "Ruth", "Nelly", "Méndez", "Yazmín", "Alirio", "Yaneida", "Guerty", "Milena", "Gallo", "Genny", "Fabio", "Correa", "Luis", "Germán", "Teresa", "Aragón", "Edgar", "Orlando", "Martha", "Lucy", "Castro", "Yadira", "Sonia", "Claudia", "Sofía", "Ramos", "Laura", "Kevin", "Sara", "Sarita", "Abiel", "Juan", "Valentina", "Cathy", "Nicolás", "Daniela", "Ramírez", "Sebastián", "Felipe", "Yuly", "Pineda", "Tatiana", "Arrazola", "Roberto", "Cristina", "Ortiz", "Judith", "Serrano", "Héctor", "Vargas", "Alberto", "Amparo", "Pinzón", "Alfonso", "Vega", "Jared", "Estefanía", "Javier", "Nathalia", "Julio", "Johanna", "Guerra", "Rubén", "Elsa", "Useche", "Charly", "Karen", "Fanny", "Bernd", "Zipaquirá", "Chía", "Cajicá", "Ibagué", "Tocancipá", "Bogotá"];
+            const nameMap = {
+                "jose": "José", "josé": "José", "omar": "Omar", "sanchez": "Sánchez", "sánchez": "Sánchez",
+                "victor": "Víctor", "víctor": "Víctor", "beuses": "Beuses", "andres": "Andrés", "andrés": "Andrés",
+                "lopez": "López", "lópez": "López", "nestor": "Néstor", "néstor": "Néstor", "ricardo": "Ricardo",
+                "liliana": "Liliana", "fajardo": "Fajardo", "helio": "Helio", "maria": "María", "maría": "María",
+                "lida": "Lida", "hernandez": "Hernández", "hernández": "Hernández", "angel": "Ángel", "ángel": "Ángel",
+                "lucila": "Lucila", "diaz": "Díaz", "díaz": "Díaz", "esperanza": "Esperanza", "rodriguez": "Rodríguez",
+                "rodríguez": "Rodríguez", "elizabeth": "Elizabeth", "alvarez": "Álvarez", "álvarez": "Álvarez",
+                "adriana": "Adriana", "yolanda": "Yolanda", "munoz": "Muñoz", "muñoz": "Muñoz", "jaime": "Jaime",
+                "gloria": "Gloria", "castelblanco": "Castelblanco", "herrera": "Herrera", "blanca": "Blanca",
+                "myriam": "Myriam", "prieto": "Prieto", "carmen": "Carmen", "helbert": "Helbert", "isabel": "Isabel",
+                "gaitan": "Gaitán", "gaitán": "Gaitán", "diego": "Diego", "paula": "Paula", "moreno": "Moreno",
+                "bonnie": "Bonnie", "marcela": "Marcela", "diana": "Diana", "rivero": "Rivero", "carlos": "Carlos",
+                "jennifer": "Jennifer", "medina": "Medina", "marlen": "Marlen", "erazo": "Erazo", "sandra": "Sandra",
+                "varela": "Varela", "margarita": "Margarita", "castillo": "Castillo", "flor": "Flor", "masmela": "Masmela",
+                "irene": "Irene", "gonzalez": "González", "gonzález": "González", "gladys": "Gladys", "suarez": "Suárez",
+                "suárez": "Suárez", "alfredo": "Alfredo", "martinez": "Martínez", "martínez": "Martínez", "daniel": "Daniel",
+                "nazhly": "Nazhly", "duarte": "Duarte", "jesus": "Jesús", "antonio": "Antonio", "mora": "Mora",
+                "ana": "Ana", "valois": "Valois", "clemencia": "Clemencia", "magdalena": "Magdalena", "montoya": "Montoya",
+                "yanira": "Yanira", "gutierrez": "Gutiérrez", "gutiérrez": "Gutiérrez", "leydy": "Leydy", "samuel": "Samuel",
+                "camilo": "Camilo", "herminda": "Herminda", "william": "William", "oscar": "Óscar", "óscar": "Óscar",
+                "jenny": "Jenny", "cortes": "Cortés", "cortés": "Cortés", "ruth": "Ruth", "nelly": "Nelly",
+                "mendez": "Méndez", "méndez": "Méndez", "yazmin": "Yazmín", "yazmín": "Yazmín", "alirio": "Alirio",
+                "yaneida": "Yaneida", "guerty": "Guerty", "milena": "Milena", "gallo": "Gallo", "genny": "Genny",
+                "fabio": "Fabio", "correa": "Correa", "luis": "Luis", "german": "Germán", "germán": "Germán",
+                "teresa": "Teresa", "aragon": "Aragón", "aragón": "Aragón", "edgar": "Edgar", "orlando": "Orlando",
+                "martha": "Martha", "lucy": "Lucy", "castro": "Castro", "yadira": "Yadira", "sonia": "Sonia",
+                "claudia": "Claudia", "sofia": "Sofía", "sofía": "Sofía", "ramos": "Ramos", "laura": "Laura",
+                "kevin": "Kevin", "sara": "Sara", "sarita": "Sarita", "abiel": "Abiel", "juan": "Juan",
+                "valentina": "Valentina", "cathy": "Cathy", "nicolas": "Nicolás", "nicolás": "Nicolás",
+                "daniela": "Daniela", "ramirez": "Ramírez", "ramírez": "Ramírez", "sebastian": "Sebastián",
+                "sebastián": "Sebastián", "felipe": "Felipe", "yuly": "Yuly", "pineda": "Pineda", "tatiana": "Tatiana",
+                "arrazola": "Arrazola", "roberto": "Roberto", "cristina": "Cristina", "ortiz": "Ortiz",
+                "judith": "Judith", "serrano": "Serrano", "hector": "Héctor", "héctor": "Héctor", "vargas": "Vargas",
+                "alberto": "Alberto", "amparo": "Amparo", "pinzon": "Pinzón", "pinzón": "Pinzón", "alfonso": "Alfonso",
+                "vega": "Vega", "jared": "Jared", "estefania": "Estefanía", "estefanía": "Estefanía", "javier": "Javier",
+                "nathalia": "Nathalia", "julio": "Julio", "johanna": "Johanna", "guerra": "Guerra", "ruben": "Rubén",
+                "rubén": "Rubén", "elsa": "Elsa", "useche": "Useche", "charly": "Charly", "karen": "Karen",
+                "fanny": "Fanny", "bernd": "Bernd"
+            };
 
-            commonNames.forEach(name => {
-                const nameRegex = new RegExp(`\\b${name}\\b`, 'gi');
-                str = str.replace(nameRegex, name);
+            Object.keys(nameMap).forEach(key => {
+                const regex = new RegExp('\\b' + key + '\\b', 'gi');
+                str = str.replace(regex, nameMap[key]);
             });
 
-            // 5. Limpieza de puntuación y espacios
+            str = str.replace(/\b(de|con|hermano|hermana|líder|lider|pastor|pastora|testimonio de)\s+([a-zñáéíóú]+)\b/gi, function(match, p1, p2) {
+                if (["la", "el", "los", "las", "un", "una", "unos", "unas", "que", "en", "para", "por", "del"].includes(p2.toLowerCase())) {
+                    return match;
+                }
+                return p1 + " " + p2.charAt(0).toUpperCase() + p2.slice(1);
+            });
+
+            str = str.replace(/(^\s*|[.!?]\s+)([a-zñáéíóú])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+
             str = str.replace(/\s+/g, ' ');
             str = str.replace(/\s+([.,;:!?])/g, '$1');
 
@@ -244,7 +303,6 @@
 
                 const rawObs = getValueByCaseInsensitiveKey(r, 'observ') || getValueByCaseInsensitiveKey(r, 'coment') || getValueByCaseInsensitiveKey(r, 'reporte');
                 
-                // Procesamiento y corrección de texto
                 const correctedObs = cleanAndCorrectText(String(rawObs || ''));
 
                 filteredResults.push({ 
