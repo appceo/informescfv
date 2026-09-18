@@ -102,11 +102,13 @@
             return key ? obj[key] : '';
         }
 
+        // MOTOR AVANZADO DE CORRECCIÓN ORTOGRÁFICA Y REDACCIÓN (ESPAÑOL COLOMBIA)
         function cleanAndCorrectText(text) {
             if (!text || typeof text !== 'string') return '';
             let str = text.trim();
             if (str.length === 0) return '';
 
+            // 1. Manejo de palabras en MAYÚSCULA SOSTENIDA a nivel de palabra
             const acronyms = new Set(["IGLECO", "CFV", "CC", "TV", "CL", "CLL", "CRA", "II", "III", "IV"]);
             str = str.replace(/\b[A-ZÁÉÍÓÚÑ]{2,}\b/g, function(word) {
                 if (acronyms.has(word)) return word;
@@ -116,26 +118,58 @@
                 return word.charAt(0) + word.slice(1).toLowerCase();
             });
 
-            const typoReplacements = [
-                [/\bcituacion\b/gi, 'situación'],
-                [/\bcituación\b/gi, 'situación'],
-                [/\bsituacion\b/gi, 'situación'],
-                [/\bproteccion\b/gi, 'protección'],
-                [/\bdificil\b/gi, 'difícil'],
-                [/\bfacil\b/gi, 'fácil'],
-                [/\breunion\b/gi, 'reunión'],
-                [/\breuniones\b/gi, 'reuniones'],
-                [/\bbendicion\b/gi, 'bendición'],
-                [/\bbendiciones\b/gi, 'bendiciones'],
-                [/\boracion\b/gi, 'oración'],
-                [/\boraciones\b/gi, 'oraciones'],
+            // 2. Corrección con detección implícita de Singular y Plural
+            const wordFixes = [
+                [/\b[cz]ituaci[oó]n(es)?\b/gi, 'situación', 'situaciones'],
+                [/\bsituaci[oó]n(es)?\b/gi, 'situación', 'situaciones'],
+                [/\bprotecci[oó]n(es)?\b/gi, 'protección', 'protecciones'],
+                [/\bprotecion(es)?\b/gi, 'protección', 'protecciones'],
+                [/\breuni[oó]n(es)?\b/gi, 'reunión', 'reuniones'],
+                [/\breunion(es)?\b/gi, 'reunión', 'reuniones'],
+                [/\bbendici[oó]n(es)?\b/gi, 'bendición', 'bendiciones'],
+                [/\bbendicion(es)?\b/gi, 'bendición', 'bendiciones'],
+                [/\boraci[oó]n(es)?\b/gi, 'oración', 'oraciones'],
+                [/\boracion(es)?\b/gi, 'oración', 'oraciones'],
+                [/\bedificaci[oó]n(es)?\b/gi, 'edificación', 'edificaciones'],
+                [/\bedificacion(es)?\b/gi, 'edificación', 'edificaciones'],
+                [/\bcomuni[oó]n(es)?\b/gi, 'comunión', 'comuniones'],
+                [/\bcomunion(es)?\b/gi, 'comunión', 'comuniones'],
+                [/\bcanci[oó]n(es)?\b/gi, 'canción', 'canciones'],
+                [/\bcancion(es)?\b/gi, 'canción', 'canciones'],
+                [/\bparticipaci[oó]n(es)?\b/gi, 'participación', 'participaciones'],
+                [/\bparticipacion(es)?\b/gi, 'participación', 'participaciones'],
+                [/\brestauraci[oó]n(es)?\b/gi, 'restauración', 'restauraciones'],
+                [/\brestauracion(es)?\b/gi, 'restauración', 'restauraciones'],
+                [/\bsanaci[oó]n(es)?\b/gi, 'sanación', 'sanaciones'],
+                [/\bsanacion(es)?\b/gi, 'sanación', 'sanaciones'],
+                [/\boperaci[oó]n(es)?\b/gi, 'operación', 'operaciones'],
+                [/\boperacion(es)?\b/gi, 'operación', 'operaciones'],
+                [/\batenci[oó]n(es)?\b/gi, 'atención', 'atenciones'],
+                [/\batencion(es)?\b/gi, 'atención', 'atenciones'],
+                [/\btem[aá]tica(s)?\b/gi, 'temática', 'temáticas'],
+                [/\bd[ií]a(s)?\b/gi, 'día', 'días'],
+                [/\bdif[ií]cil(es)?\b/gi, 'difícil', 'difíciles'],
+                [/\bf[aá]cil(es)?\b/gi, 'fácil', 'fáciles'],
+                [/\bbendecid[ao](s)?\b/gi, 'bendecido', 'bendecidos']
+            ];
+
+            wordFixes.forEach(([regex, sing, plur]) => {
+                str = str.replace(regex, function(match, isPlural) {
+                    const target = isPlural ? plur : sing;
+                    if (match === match.toUpperCase()) return target.toUpperCase();
+                    if (match.charAt(0) === match.charAt(0).toUpperCase()) {
+                        return target.charAt(0).toUpperCase() + target.slice(1).toLowerCase();
+                    }
+                    return target.toLowerCase();
+                });
+            });
+
+            // Reemplazos directos
+            const simpleReplacements = [
                 [/\basistio\b/gi, 'asistió'],
                 [/\basistieron\b/gi, 'asistieron'],
                 [/\brealizo\b/gi, 'realizó'],
                 [/\brealizaron\b/gi, 'realizaron'],
-                [/\btematica\b/gi, 'temática'],
-                [/\bdia\b/gi, 'día'],
-                [/\bdias\b/gi, 'días'],
                 [/\bvictorbeuses\b/gi, 'Víctor Beuses'],
                 [/\bSEÑOR\b/gi, 'Señor'],
                 [/\bsenor\b/gi, 'Señor'],
@@ -144,15 +178,6 @@
                 [/\bbiblia\b/gi, 'Biblia'],
                 [/\biglesia\b/gi, 'Iglesia'],
                 [/\bigleco\b/gi, 'IGLECO'],
-                [/\bcomunion\b/gi, 'comunión'],
-                [/\bedificacion\b/gi, 'edificación'],
-                [/\bparticipacion\b/gi, 'participación'],
-                [/\bcancion\b/gi, 'canción'],
-                [/\bcanciones\b/gi, 'canciones'],
-                [/\brestauracion\b/gi, 'restauración'],
-                [/\bsanacion\b/gi, 'sanación'],
-                [/\boperacion\b/gi, 'operación'],
-                [/\batencion\b/gi, 'atención'],
                 [/\btambien\b/gi, 'también'],
                 [/\bademas\b/gi, 'además'],
                 [/\btraves\b/gi, 'través'],
@@ -160,13 +185,15 @@
                 [/\bestan\b/gi, 'están']
             ];
 
-            typoReplacements.forEach(([pattern, replacement]) => {
+            simpleReplacements.forEach(([pattern, replacement]) => {
                 str = str.replace(pattern, replacement);
             });
 
+            // Contexto verbal para "está"
             str = str.replace(/\b(ya|se|no|que|él|ella|quien)\s+esta\b/gi, '$1 está');
             str = str.replace(/\besta\s+(trabajando|orando|asistiendo|haciendo|estudiando|buscando|pasando|saliendo|mejorando|sanando|recuperando|viviendo)\b/gi, 'está $1');
 
+            // 3. Normalización y tildes en Nombres y Apellidos
             const nameMap = {
                 "jose": "José", "josé": "José", "omar": "Omar", "sanchez": "Sánchez", "sánchez": "Sánchez",
                 "victor": "Víctor", "víctor": "Víctor", "beuses": "Beuses", "andres": "Andrés", "andrés": "Andrés",
@@ -213,15 +240,21 @@
                 str = str.replace(regex, nameMap[key]);
             });
 
-            str = str.replace(/\b(de|con|hermano|hermana|líder|lider|pastor|pastora|testimonio de)\s+([a-zñáéíóú]+)\b/gi, function(match, p1, p2) {
-                if (["la", "el", "los", "las", "un", "una", "unos", "unas", "que", "en", "para", "por", "del"].includes(p2.toLowerCase())) {
-                    return match;
-                }
-                return p1 + " " + p2.charAt(0).toUpperCase() + p2.slice(1);
-            });
-
+            // 4. Capitalización de oraciones
             str = str.replace(/(^\s*|[.!?]\s+)([a-zñáéíóú])/g, (m, p1, p2) => p1 + p2.toUpperCase());
 
+            // 5. Ajustar conectores en mayúscula dentro de la oración
+            str = str.replace(/\b(En|De|Con|Para|Por|Sin|Sobre|Que|El|La|Los|Las|Un|Una)\b/g, function(match, word, offset) {
+                if (offset > 0) {
+                    const prevChar = str.charAt(offset - 2);
+                    if (prevChar !== '.' && prevChar !== '!' && prevChar !== '?' && str.charAt(offset - 1) === ' ') {
+                        return word.toLowerCase();
+                    }
+                }
+                return word;
+            });
+
+            // 6. Limpieza de puntuación y espacios
             str = str.replace(/\s+/g, ' ');
             str = str.replace(/\s+([.,;:!?])/g, '$1');
 
